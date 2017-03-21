@@ -1,6 +1,6 @@
 ---
 title: "Cornhusker Crime Data and the Legalization of Marijuana in The Centenial State"
-author: "John R. Brandon, PhD (and other concerned scientists et. al.)"
+author: "John R. Brandon, PhD"
 date: "`r Sys.Date()`"
 output: rmarkdown::github_document
 # output: html_notebook
@@ -30,21 +30,61 @@ It was Sessions' recent comments linking marijuana and violent crime, however, t
 
 ## BadCornHusker.csv
 
-Session's claim is related to 
-Jeff Session's claim that 
+Introduce publically available crime data, *e.g.* `.dat\BadCornHusker.csv` here:
+```{r, warning = FALSE, message = FALSE}
+# Packages
+library(tidyverse)  # For wrangling data
+library(lubridate)  # Dates and times
+library(purrr)      # Mapping functions to each element of a vector
+
+# Read Nebraska crime data and glimpse -----------------------------------------
+badcorn_wide = read_csv(file = "./dat/BadCornHusker.csv")
+
+# Glimpse data
+badcorn_wide  
+```
+
+```{r}
+# Define a function to map legal status to year --------------------------------
+legality = function(year) {
+  if (year < 2009) {
+    "Illegal"
+  } else if (year <= 2012) {
+    "Medical"
+  } else {
+    "Legal"
+  }
+}
+```
+
+```{r}
+# Wrangle data before plotting -------------------------------------------------
+badcorn_long = badcorn_wide %>%
+  # Gather table from wide to long
+  gather(key = yr, value = Count, -Offense, -Violent) %>%
+  # Format yr as POSIXct date
+  mutate(Year = paste(yr, "12", "31", sep = "-"),
+         Year = ymd(Year)) %>%
+  # Map legal status to year
+  mutate(Status = map_chr(.x = yr, .f = legality),
+         Legal = ifelse(Status != "Illegal", TRUE, FALSE)) %>%
+  mutate(Offense = as.factor(Offense))
+
+# Glimpse data
+badcorn_long
+
+```
+
+```{r}
+# First look at criminal homicides ---------------------------------------------
+badcorn_long %>% filter(Offense == "Criminal_Homicide") %>%
+  ggplot(aes(x = Year, y = Count, color = Status)) +
+  theme_classic() +
+  geom_point() +
+  stat_smooth(method = lm) +
+  labs(title = "Criminal Homicides",
+       subtitle = "Nebraska: 2000 -- 2015")
+```
 
 
 
-
-
-to search for Nebraska crime data (`.dat\BadCornHusker.csv`). here:
-
-As a quantitative data sciency type, a recent quote struck me as questionable. The link latest quote struck me as ____. []
-
-
-If the steady trend in states that have legalized marijuana, and national polling numbers are any indication, he seems to already be on the wrong side of history. The "War on Drugs" was not a success. This, at a time when the majority of Americans are now in favor of legalizing marijuana. [1](http://www.reuters.com/article/us-usa-drugs-report-idUSKCN12C2B8)
-
-There are a lot of people in jail and families suffering today because of non-violent marijuana possession arrests and prosecutions. Attorney General Sessions argues that marijuana is related to violent crime. 
-
-
-the "war on drugs" was a failure, with rates of drug use unchanged since President Richard Nixon launched the campaign more than 40 years ago.

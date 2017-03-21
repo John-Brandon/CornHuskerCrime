@@ -1,13 +1,13 @@
 Cornhusker Crime Data and the Legalization of Marijuana in The Centenial State
 ================
-John Brandon
-2017-03-20
+John R. Brandon, PhD
+2017-03-21
 
 It seems that the storm of U.S. political news has been unavoidable recently. The stakes are high under the new Republican Administration. It only took one executive order before the Federal District Courts began to restrain the administration from constitutional overreach.
 
-This document was motivated by comments Attorney General Jeff Sessions (AL) made recently regarding marijuana. Some background is provided on Nebraska's role as an opponent of legalization in the courts, as well as background on Session's recent comments proposing a link between marijuana and violent crime.
+This document was motivated by comments Attorney General Jeff Sessions (AL) made recently regarding marijuana. Context is provided on Nebraska's role as an opponent of legalization in the courts, and background is provided regarding Session's recent comments proposing a link between marijuana and violent crime.
 
-I will examine crime data from Nebraska with an eye on the marijuana legalization timeline of bordering state Colorado. Of particular interest is the question, "Are there trends in Nebraska crime through time, and if so, do they correspond with the timeline of legalization in Colorado?"
+This letter will examine crime data from Nebraska with an eye on the marijuana legalization timeline of bordering state Colorado. Of particular interest is the question, "Are there trends in Nebraska crime through time, and if so, do they correspond with the timeline of legalization in Colorado?"
 
 Nebraska and Oklahoma *v* Colorado: 2014 -- 2016
 ------------------------------------------------
@@ -30,14 +30,92 @@ It was Sessions' recent comments linking marijuana and violent crime, however, t
 BadCornHusker.csv
 -----------------
 
-Session's claim is related to Jeff Session's claim that
+Introduce publically available crime data, *e.g.* `.dat\BadCornHusker.csv` here:
 
-to search for Nebraska crime data (`.dat\BadCornHusker.csv`). here:
+``` r
+# Packages
+library(tidyverse)  # For wrangling data
+library(lubridate)  # Dates and times
+library(purrr)      # Mapping functions to each element of a vector
 
-As a quantitative data sciency type, a recent quote struck me as questionable. The link latest quote struck me as \_\_\_\_. \[\]
+# Read Nebraska crime data and glimpse -----------------------------------------
+badcorn_wide = read_csv(file = "./dat/BadCornHusker.csv")
 
-If the steady trend in states that have legalized marijuana, and national polling numbers are any indication, he seems to already be on the wrong side of history. The "War on Drugs" was not a success. This, at a time when the majority of Americans are now in favor of legalizing marijuana. [1](http://www.reuters.com/article/us-usa-drugs-report-idUSKCN12C2B8)
+# Glimpse data
+badcorn_wide  
+```
 
-There are a lot of people in jail and families suffering today because of non-violent marijuana possession arrests and prosecutions. Attorney General Sessions argues that marijuana is related to violent crime.
+    ## # A tibble: 31 × 18
+    ##                Offense Violent `2000` `2001` `2002` `2003` `2004` `2005`
+    ##                  <chr>   <lgl>  <int>  <int>  <int>  <int>  <int>  <int>
+    ## 1              Unknown      NA      4      4      5      3      9      6
+    ## 2    Criminal_Homicide    TRUE     49     51     42     56     35     41
+    ## 3  Death_by_Negligence      NA     16     22     24     20     15     21
+    ## 4        Forcible_Rape    TRUE    158    156    155    157    200    169
+    ## 5              Robbery    TRUE    316    282    331    282    317    324
+    ## 6   Aggravated_Assault    TRUE    959    895    849    876   1044   1274
+    ## 7             Burglary   FALSE   1196   1033   1015   1031   1012    965
+    ## 8              Larceny   FALSE   9904   9797   9315   8256   8795   8468
+    ## 9  Motor_Vehicle_Theft   FALSE    471    558    530    457    399    370
+    ## 10      Simple_Assault    TRUE  10229   9809   9838   9589   9607   9975
+    ## # ... with 21 more rows, and 10 more variables: `2006` <int>,
+    ## #   `2007` <int>, `2008` <int>, `2009` <int>, `2010` <int>, `2011` <int>,
+    ## #   `2012` <int>, `2013` <int>, `2014` <int>, `2015` <int>
 
-the "war on drugs" was a failure, with rates of drug use unchanged since President Richard Nixon launched the campaign more than 40 years ago.
+``` r
+# Define a function to map legal status to year --------------------------------
+legality = function(year) {
+  if (year < 2009) {
+    "Illegal"
+  } else if (year <= 2012) {
+    "Medical"
+  } else {
+    "Legal"
+  }
+}
+```
+
+``` r
+# Wrangle data before plotting -------------------------------------------------
+badcorn_long = badcorn_wide %>%
+  # Gather table from wide to long
+  gather(key = yr, value = Count, -Offense, -Violent) %>%
+  # Format yr as POSIXct date
+  mutate(Year = paste(yr, "12", "31", sep = "-"),
+         Year = ymd(Year)) %>%
+  # Map legal status to year
+  mutate(Status = map_chr(.x = yr, .f = legality),
+         Legal = ifelse(Status != "Illegal", TRUE, FALSE)) %>%
+  mutate(Offense = as.factor(Offense))
+
+# Glimpse data
+badcorn_long
+```
+
+    ## # A tibble: 496 × 7
+    ##                Offense Violent    yr Count       Year  Status Legal
+    ##                 <fctr>   <lgl> <chr> <int>     <date>   <chr> <lgl>
+    ## 1              Unknown      NA  2000     4 2000-12-31 Illegal FALSE
+    ## 2    Criminal_Homicide    TRUE  2000    49 2000-12-31 Illegal FALSE
+    ## 3  Death_by_Negligence      NA  2000    16 2000-12-31 Illegal FALSE
+    ## 4        Forcible_Rape    TRUE  2000   158 2000-12-31 Illegal FALSE
+    ## 5              Robbery    TRUE  2000   316 2000-12-31 Illegal FALSE
+    ## 6   Aggravated_Assault    TRUE  2000   959 2000-12-31 Illegal FALSE
+    ## 7             Burglary   FALSE  2000  1196 2000-12-31 Illegal FALSE
+    ## 8              Larceny   FALSE  2000  9904 2000-12-31 Illegal FALSE
+    ## 9  Motor_Vehicle_Theft   FALSE  2000   471 2000-12-31 Illegal FALSE
+    ## 10      Simple_Assault    TRUE  2000 10229 2000-12-31 Illegal FALSE
+    ## # ... with 486 more rows
+
+``` r
+# First look at criminal homicides ---------------------------------------------
+badcorn_long %>% filter(Offense == "Criminal_Homicide") %>%
+  ggplot(aes(x = Year, y = Count, color = Status)) +
+  theme_classic() +
+  geom_point() +
+  stat_smooth(method = lm) +
+  labs(title = "Criminal Homicides",
+       subtitle = "Nebraska: 2000 -- 2015")
+```
+
+![](README_files/figure-markdown_github/unnamed-chunk-4-1.png)
